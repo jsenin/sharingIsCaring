@@ -171,22 +171,40 @@ def checkSessionCookie(host, cookieString):
     else:
         return False
 
-def browser(host, port, version):
-    def do_request(host, port, var):
-        timeout = 20
-        if version[0] == "8":
-            url = "http://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
-        else:
-            url = "http://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
+class ClientV8:
+    def __init__(self, host, port, timeout):
+        self._host = host
+        self._port = port
+        self._timeout = timeout
+
+    def request(self, path):
+        url = "http://{0}:{1}/rpc/dir?path={2}".format(self._host, self._port, path)
+        return requests.get(url, timeout=self._timeout)
+
+    def request_ssl(self, path):
+        url = "https://{0}:{1}/rpc/dir?path={2}".format(self._host, self._port, path)
+        return requests.get(url, timeout=self._timeout, verify=False)
+
+class ClientV7:
+    def __init__(self, host, port, timeout):
+        self._host = host
+        self._port = port
+        self._timeout = timeout
+
+    def request(self, path):
+        url = "http://{0}:{1}/rpc/dir/path={2}".format(self._host, self._port, path)
+        return requests.get(url, timeout=self._timeout)
+
+    def request_ssl(self, path):
+        url = "https://{0}:{1}/rpc/dir/path={2}".format(self._host, self._port, path)
+        return requests.get(url, timeout=self._timeout, verify=False)
+
+def browser(client):
+    def do_request(client, var):
         try:
-            response = requests.get(url, timeout=timeout)
+            return client.request(var)
         except requests.exceptions.ConnectionError:
-            if version[0] == "8":
-                url = "https://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
-            else:
-                url = "https://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
-            response = requests.get(url, timeout=timeout, verify=False)
-        return response
+            return client.request_ssl(var)
 
     def print_item(id, type, name):
         if warningFileName(name):
@@ -210,14 +228,14 @@ def browser(host, port, version):
                 if type == 'Dir':
                     next_path = path + "/" + name
                     next_path_id = path_id + "/" + id
-                    response = do_request(host, port, next_path_id)
+                    response = do_request(client, next_path_id)
                     do_print_results(response.iter_lines(), next_path, next_path_id)
 
     while True:
         path = input("path nr (enter='/'): ")
         if path == "exit":
             sys.exit()
-        response = do_request(host, port, path)
+        response = do_request(client, path)
         print ("-" * 30)
         do_print_results(response.iter_lines(), "", "")
 
@@ -230,7 +248,7 @@ if __name__ == '__main__':
     try:
         host = sys.argv[1]
         port = sys.argv[2]
-        tiemout = DEFAULT_TIMEOUT_SECONDS
+        timeout = DEFAULT_TIMEOUT_SECONDS
         if not checkPort(host, port):
             print(Fore.RED, "Error, can´t open port {}".format(port))
             exit
@@ -240,7 +258,8 @@ if __name__ == '__main__':
         twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
         if twonky.upper() != "N":
             version = serverInfo(host, port)
+            client = ClientV8(host, port, timeout) if version == "8" else ClientV7(host, port, timeout)
             if setContentBase(host, port):
-                browser(host, port, version)
+                browser(client)
     except requests.exceptions.ReadTimeout:
         print(f"Timeout requesting to {host}:{port} using {timeout} of timeout. Consider to raising it")
