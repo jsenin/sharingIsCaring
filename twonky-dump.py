@@ -115,49 +115,31 @@ def setContentBase(host, port):
         return True
 
 # Get some information about the target device
-def serverInfo(host, port, client):
-    timeout = 20
-    print_color(Fore.MAGENTA, "*** Get Serverdetails from Twonky ***")
-    try:
-        friendlyname = client.friendly_name()
-    except requests.exceptions.ConnectionError:
-        friendlyname = client.friendly_name(ssl=True)
-    if friendlyname.status_code == 200:
-        print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname.text))
-    else:
-        print_color(Fore.RED, "*** Not authorized to edit settings, password protection active ***")
-        sys.exit()
+def get_server_info(host, port, client):
+    def _get_friendly_name():
+        try:
+            response = client.friendly_name()
+        except requests.exceptions.ConnectionError:
+            response = client.friendly_name(ssl=True)
 
-    try:
-        url = "http://{0}:{1}/rpc/info_status".format(host, port)
-        infoStatus = requests.get(url, timeout=timeout)
-    except requests.exceptions.ConnectionError:
-        url = "https://{0}:{1}/rpc/info_status".format(host, port)
-        infoStatus = requests.get(url, timeout=timeout, verify=False)
-    for line in infoStatus.iter_lines():
-        line = line.decode("utf8")
-        if "version" in line:
-            lineSplited = line.split("|")
-            versionNumber = lineSplited[1]
-            print_color(Fore.GREEN, "Twonky Version: {0}".format(versionNumber))
-        elif line.find("serverplatform") != -1:
-            lineSplited = line.split("|")
-            serverPlatform = lineSplited[1]
-            print_color(Fore.GREEN, "Serverplatform: {0}".format(serverPlatform))
-        elif line.find("builddate") != -1:
-            lineSplited = line.split("|")
-            buildDate = lineSplited[1]
-            print_color(Fore.GREEN, "Build date: {0}".format(buildDate))
-        elif line.find("pictures") != -1:
-            lineSplited = line.split("|")
-            pictureCount = lineSplited[1]
-            print_color(Fore.GREEN, "Pictures shared: {0}".format(pictureCount))
-        elif line.find("videos") != -1:
-            lineSplited = line.split("|")
-            videoCount = lineSplited[1]
-            print_color(Fore.GREEN, "Videos shared: {0}".format(videoCount))
-    return versionNumber
+        if response.status_code == 200:
+            return response.text
 
+    def _get_server_info():
+        server_info = {}
+        try:
+            info_status = client.info_status()
+        except requests.exceptions.ConnectionError:
+            info_status = client.info_status(ssl=True)
+        for line in info_status.iter_lines():
+            line = line.decode("utf8")
+            split = line.split("|")
+            server_info[split[0]] = split[1]
+        return server_info
+
+    friendlyname = _get_friendly_name()
+    server_info = _get_server_info()
+    return friendlyname, server_info
 # Check if the discovered Cookie is a valid PHP Session identifier for WD api
 def checkSessionCookie(host, cookieString):
     url = "http://{0}/api/2.1/rest/device_user".format(host)
@@ -182,6 +164,9 @@ class TwonkyClient:
     def friendly_name(self, ssl=False):
         return requests.get(self._url_builder.friendly_name(ssl), timeout=self._timeout, verify=False)
 
+    def info_status(self, ssl=False):
+        return requests.get(self._url_builder.info_status(ssl), timeout=self._timeout, verify=False)
+
 class TwonkyURLBuilder:
     def __init__(self, host, port, version="7"):
         self._host = host
@@ -198,6 +183,9 @@ class TwonkyURLBuilder:
         schema = "https" if ssl else "http"
         return f"{schema}://{self._host}:{self._port}/rpc/get_friendlyname"
 
+    def info_status(self, ssl=False):
+        schema = "https" if ssl else "http"
+        return f"{schema}://{self._host}:{self._port}/rpc/info_status"
 
 def browser(client):
     def do_request(client, var):
@@ -259,12 +247,27 @@ if __name__ == '__main__':
         if twonky.upper() != "N":
             url_builder =  TwonkyURLBuilder(host, port, version="7")
             client = TwonkyClient(host, port, timeout, url_builder)
-            version = serverInfo(host, port, client)
-            if version == "8":
-                url_builder =  TwonkyURLBuilder(host, port, version="8")
+            friendlyname, server_info = get_server_info(host, port, client)
+
+            print_color(Fore.MAGENTA, "*** Get Server details from Twonky ***")
+            if friendlyname:
+                print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname))
+            else:
+                print_color(Fore.RED, "*** Not authorized to edit settings, password protection active ***")
+                sys.exit()
+
+            print_color(Fore.GREEN, f"Twonky Version: {server_info['version']}")
+            print_color(Fore.GREEN, f"Serverplatform: {server_info['serverplatform']}")
+            print_color(Fore.GREEN, f"Build date: {server_info['builddate']}")
+            print_color(Fore.GREEN, f"Pictures shared: {server_info['pictures']}")
+            print_color(Fore.GREEN, f"Videos shared: {server_info['videos']}")
+
+            if server_info['version'] == "8":
+                url_builder = TwonkyURLBuilder(host, port, version="8")
                 client = TwonkyClient(host, port, timeout, url_builder)
 
             if setContentBase(host, port):
                 browser(client)
+
     except requests.exceptions.ReadTimeout:
         print(f"Timeout requesting to {host}:{port} using {timeout} of timeout. Consider to raising it")
