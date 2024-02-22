@@ -204,12 +204,12 @@ def browser(host, port, version):
             line = line.decode("utf8")
             if line and len(line) > 3 :
                 id, type, name = extract_type_name(line)
-            print_item(id, type, path + "/" + name)
-            if type == 'Dir':
-                next_path = path + "/" + name
-                next_path_id = path_id + "/" + id
-                response = do_request(host, port, next_path_id)
-                do_print_results(response.iter_lines(), next_path, next_path_id)
+                print_item(id, type, path + "/" + name)
+                if type == 'Dir':
+                    next_path = path + "/" + name
+                    next_path_id = path_id + "/" + id
+                    response = do_request(host, port, next_path_id)
+                    do_print_results(response.iter_lines(), next_path, next_path_id)
 
     while True:
         path = input("path nr: ")
