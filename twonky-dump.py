@@ -170,35 +170,31 @@ def checkSessionCookie(host, cookieString):
         return False
 
 class TwonkyClient:
-    def __init__(self, host, port, timeout):
+    def __init__(self, host, port, timeout, url_builder):
         self._host = host
         self._port = port
         self._timeout = timeout
-
-    def _url_dir_items(self, path, ssl=False):
-        raise NotImplementedError("This is a template pattern")
+        self._url_builder = url_builder
 
     def dir_items(self, path, ssl=False):
-        return requests.get(self._url_dir_items(path, ssl), timeout=self._timeout, verify=False)
+        return requests.get(self._url_builder.dir_items(path, ssl), timeout=self._timeout, verify=False)
 
     def friendly_name(self, ssl=False):
-        return requests.get(self._url_friendly_name(ssl), timeout=self._timeout, verify=False)
+        return requests.get(self._url_builder.friendly_name(ssl), timeout=self._timeout, verify=False)
 
-class TwonkyClientV8(TwonkyClient):
-    def _url_dir_items(self, path, ssl=False):
-        schema = "https" if ssl else "http"
-        return f"{schema}://{self._host}:{self._port}/rpc/dir?path={path}"
+class TwonkyURLBuilder:
+    def __init__(self, host, port, version="7"):
+        self._host = host
+        self._port = port
+        self._version = version
 
-    def _url_friendly_name(self, path, ssl=False):
+    def dir_items(self, path, ssl):
         schema = "https" if ssl else "http"
-        return f"{schema}://{self._host}:{self._port}/rpc/get_friendlyname"
-
-class TwonkyClientV7(TwonkyClient):
-    def _url_dir_items(self, path, ssl=False):
-        schema = "https" if ssl else "http"
+        if self._version == "8":
+            return f"{schema}://{self._host}:{self._port}/rpc/dir?path={path}"
         return f"{schema}://{self._host}:{self._port}/rpc/dir/path={path}"
 
-    def _url_friendly_name(self, path, ssl=False):
+    def friendly_name(self, ssl=False):
         schema = "https" if ssl else "http"
         return f"{schema}://{self._host}:{self._port}/rpc/get_friendlyname"
 
@@ -261,8 +257,13 @@ if __name__ == '__main__':
         print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
         twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
         if twonky.upper() != "N":
-            client = TwonkyClientV8(host, port, timeout) if version == "8" else TwonkyClientV7(host, port, timeout)
+            url_builder =  TwonkyURLBuilder(host, port, version="7")
+            client = TwonkyClient(host, port, timeout, url_builder)
             version = serverInfo(host, port, client)
+            if version == "8":
+                url_builder =  TwonkyURLBuilder(host, port, version="8")
+                client = TwonkyClient(host, port, timeout, url_builder)
+
             if setContentBase(host, port):
                 browser(client)
     except requests.exceptions.ReadTimeout:
