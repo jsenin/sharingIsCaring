@@ -171,40 +171,34 @@ def checkSessionCookie(host, cookieString):
     else:
         return False
 
-class ClientV8:
+class TwonkyClient:
     def __init__(self, host, port, timeout):
         self._host = host
         self._port = port
         self._timeout = timeout
 
-    def request(self, path):
-        url = "http://{0}:{1}/rpc/dir?path={2}".format(self._host, self._port, path)
-        return requests.get(url, timeout=self._timeout)
+    def _url_dir_items(self, path, ssl=False):
+        raise NotImplementedError("This is a template pattern")
 
-    def request_ssl(self, path):
-        url = "https://{0}:{1}/rpc/dir?path={2}".format(self._host, self._port, path)
-        return requests.get(url, timeout=self._timeout, verify=False)
+    def dir_items(self, path, ssl=False):
+        return requests.get(self._url_dir_items(path, ssl), timeout=self._timeout)
 
-class ClientV7:
-    def __init__(self, host, port, timeout):
-        self._host = host
-        self._port = port
-        self._timeout = timeout
+class TwonkyClientV8(TwonkyClient):
+    def _url_dir_items(self, path, ssl=False):
+        schema = "https" if ssl else "http"
+        return f"{schema}://{self._host}:{self._port}/rpc/dir?path={path}"
 
-    def request(self, path):
-        url = "http://{0}:{1}/rpc/dir/path={2}".format(self._host, self._port, path)
-        return requests.get(url, timeout=self._timeout)
-
-    def request_ssl(self, path):
-        url = "https://{0}:{1}/rpc/dir/path={2}".format(self._host, self._port, path)
-        return requests.get(url, timeout=self._timeout, verify=False)
+class TwonkyClientV7(TwonkyClient):
+    def _url_dir_items(self, path, ssl=False):
+        schema = "https" if ssl else "http"
+        return f"{schema}://{self._host}:{self._port}/rpc/dir/path={path}"
 
 def browser(client):
     def do_request(client, var):
         try:
-            return client.request(var)
+            return client.dir_items(var)
         except requests.exceptions.ConnectionError:
-            return client.request_ssl(var)
+            return client.dir_items(var, ssl=True)
 
     def print_item(id, type, name):
         if warningFileName(name):
@@ -258,7 +252,7 @@ if __name__ == '__main__':
         twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
         if twonky.upper() != "N":
             version = serverInfo(host, port)
-            client = ClientV8(host, port, timeout) if version == "8" else ClientV7(host, port, timeout)
+            client = TwonkyClientV8(host, port, timeout) if version == "8" else TwonkyClientV7(host, port, timeout)
             if setContentBase(host, port):
                 browser(client)
     except requests.exceptions.ReadTimeout:
