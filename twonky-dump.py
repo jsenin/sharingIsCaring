@@ -114,13 +114,14 @@ def setContentBase(host, port):
 
 # Get some information about the target device
 def serverInfo(host, port):
+    timeout = 20
     print_color(Fore.MAGENTA, "*** Get Serverdetails from Twonky ***")
     try:
         url = "http://{0}:{1}/rpc/get_friendlyname".format(host, port)
-        friendlyname = requests.get(url, timeout=5)
+        friendlyname = requests.get(url, timeout=timeout)
     except requests.exceptions.ConnectionError:
         url= "https://{0}:{1}/rpc/get_friendlyname".format(host, port)
-        friendlyname = requests.get(url, timeout=5, verify=False)
+        friendlyname = requests.get(url, timeout=timeout, verify=False)
     if friendlyname.status_code == 200:
         print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname.text))
     else:
@@ -129,10 +130,10 @@ def serverInfo(host, port):
 
     try:
         url = "http://{0}:{1}/rpc/info_status".format(host, port)
-        infoStatus = requests.get(url, timeout=5)
+        infoStatus = requests.get(url, timeout=timeout)
     except requests.exceptions.ConnectionError:
         url = "https://{0}:{1}/rpc/info_status".format(host, port)
-        infoStatus = requests.get(url, timeout=5, verify=False)
+        infoStatus = requests.get(url, timeout=timeout, verify=False)
     for line in infoStatus.iter_lines():
         line = line.decode("utf8")
         if "version" in line:
