@@ -171,18 +171,19 @@ def checkSessionCookie(host, cookieString):
 
 def browser(host, port, version):
     def do_request(host, port, var):
+        timeout = 20
         if version[0] == "8":
             url = "http://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
         else:
             url = "http://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=timeout)
         except requests.exceptions.ConnectionError:
             if version[0] == "8":
                 url = "https://{0}:{1}/rpc/dir?path={2}".format(host, port, var)
             else:
                 url = "https://{0}:{1}/rpc/dir/path={2}".format(host, port, var)
-            response = requests.get(url, timeout=5, verify=False)
+            response = requests.get(url, timeout=timeout, verify=False)
         return response
 
     def print_item(id, type, name):
