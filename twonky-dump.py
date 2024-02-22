@@ -57,6 +57,8 @@ except Exception:
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+DEFAULT_TIMEOUT_SECONDS=20
+
 class Fore:
     RED   = "\033[1;31m"
     BLUE  = "\033[1;34m"
@@ -212,7 +214,7 @@ def browser(host, port, version):
                     do_print_results(response.iter_lines(), next_path, next_path_id)
 
     while True:
-        path = input("path nr: ")
+        path = input("path nr (enter='/'): ")
         if path == "exit":
             sys.exit()
         response = do_request(host, port, path)
@@ -225,16 +227,20 @@ if __name__ == '__main__':
         print ("Usage: $ " + sys.argv[0] + " [IP_adress] [port]")
         exit
 
-    host = sys.argv[1]
-    port = sys.argv[2]
-    if not checkPort(host, port):
-        print(Fore.RED, "Error, can´t open port {}".format(port))
-        exit
+    try:
+        host = sys.argv[1]
+        port = sys.argv[2]
+        tiemout = DEFAULT_TIMEOUT_SECONDS
+        if not checkPort(host, port):
+            print(Fore.RED, "Error, can´t open port {}".format(port))
+            exit
 
-    print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
-    print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
-    twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
-    if twonky.upper() != "N":
-        version = serverInfo(host, port)
-        if setContentBase(host, port):
-            browser(host, port, version)
+        print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
+        print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
+        twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
+        if twonky.upper() != "N":
+            version = serverInfo(host, port)
+            if setContentBase(host, port):
+                browser(host, port, version)
+    except requests.exceptions.ReadTimeout:
+        print(f"Timeout requesting to {host}:{port} using {timeout} of timeout. Consider to raising it")
