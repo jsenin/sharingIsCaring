@@ -219,16 +219,20 @@ def browser(host, port, version):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 3:
         print ("Usage: $ " + sys.argv[0] + " [IP_adress] [port]")
-    else:
-        host = sys.argv[1]
-        print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
-        port = sys.argv[2]
-        if checkPort(host, port):
-            print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
-            twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
-            if twonky.upper() != "N":
-                version = serverInfo(host, port)
-                if setContentBase(host, port):
-                    browser(host, port, version)
+        exit
+
+    host = sys.argv[1]
+    port = sys.argv[2]
+    if not checkPort(host, port):
+        print(Fore.RED, "Error, can´t open port {}".format(port))
+        exit
+
+    print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
+    print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
+    twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
+    if twonky.upper() != "N":
+        version = serverInfo(host, port)
+        if setContentBase(host, port):
+            browser(host, port, version)
