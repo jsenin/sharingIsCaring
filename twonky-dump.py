@@ -195,7 +195,7 @@ class TwonkyURLBuilder:
         return f"{schema}://{self._host}:{self._port}/rpc/set_all"
 
 
-def browser(client):
+def browse(client):
     def do_request(client, var):
         try:
             return client.dir_items(var)
@@ -246,36 +246,37 @@ if __name__ == '__main__':
         port = sys.argv[2]
         timeout = DEFAULT_TIMEOUT_SECONDS
         if not check_port(host, port):
-            print(Fore.RED, "Error, can´t open port {}".format(port))
-            exit
+            print_color(Fore.RED, "Error, can´t open port {}".format(port))
+            sys.exit()
 
         print_color(Fore.MAGENTA, "https://www.shodan.io/host/{0}".format(host))
         print_color(Fore.GREEN, "*** Port {0} opened ***".format(port))
         twonky = input("Run Twonky browser on port {0} [Y, N]? [Y] ".format(port))
-        if twonky.upper() != "N":
-            url_builder =  TwonkyURLBuilder(host, port, version="7")
+        if twonky.upper() == "N":
+            sys.exit("Bye")
+
+        url_builder = TwonkyURLBuilder(host, port, version="7")
+        client = TwonkyClient(host, port, timeout, url_builder)
+        friendlyname, server_info = get_server_info(host, port, client)
+        print_color(Fore.MAGENTA, "*** Get Server details from Twonky ***")
+        if friendlyname:
+            print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname))
+        else:
+            print_color(Fore.RED, "*** Not authorized to edit settings, password protection active ***")
+            sys.exit()
+
+        print_color(Fore.GREEN, f"Twonky Version: {server_info['version']}")
+        print_color(Fore.GREEN, f"Serverplatform: {server_info['serverplatform']}")
+        print_color(Fore.GREEN, f"Build date: {server_info['builddate']}")
+        print_color(Fore.GREEN, f"Pictures shared: {server_info['pictures']}")
+        print_color(Fore.GREEN, f"Videos shared: {server_info['videos']}")
+
+        if server_info['version'].startswith("8"):
+            url_builder = TwonkyURLBuilder(host, port, version="8")
             client = TwonkyClient(host, port, timeout, url_builder)
-            friendlyname, server_info = get_server_info(host, port, client)
 
-            print_color(Fore.MAGENTA, "*** Get Server details from Twonky ***")
-            if friendlyname:
-                print_color(Fore.GREEN, "Server Name: {0}".format(friendlyname))
-            else:
-                print_color(Fore.RED, "*** Not authorized to edit settings, password protection active ***")
-                sys.exit()
-
-            print_color(Fore.GREEN, f"Twonky Version: {server_info['version']}")
-            print_color(Fore.GREEN, f"Serverplatform: {server_info['serverplatform']}")
-            print_color(Fore.GREEN, f"Build date: {server_info['builddate']}")
-            print_color(Fore.GREEN, f"Pictures shared: {server_info['pictures']}")
-            print_color(Fore.GREEN, f"Videos shared: {server_info['videos']}")
-
-            if server_info['version'] == "8":
-                url_builder = TwonkyURLBuilder(host, port, version="8")
-                client = TwonkyClient(host, port, timeout, url_builder)
-
-            if set_content_base(host, port, client):
-                browser(client)
+        if set_content_base(host, port, client):
+            browse(client)
 
     except requests.exceptions.ReadTimeout:
         print(f"Timeout requesting to {host}:{port} using {timeout} of timeout. Consider to raising it")
