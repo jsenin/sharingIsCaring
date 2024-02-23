@@ -48,6 +48,7 @@
  * ------------------------------------------------------------------------------
 '''
 try:
+    import re
     import sys
     import socket
     import requests
@@ -157,8 +158,8 @@ class TwonkyClient:
         self._timeout = timeout
         self._url_builder = url_builder
 
-    def dir_items(self, path, ssl=False):
-        return requests.get(self._url_builder.dir_items(path, ssl), timeout=self._timeout, verify=False)
+    def dir_path(self, path, ssl=False):
+        return requests.get(self._url_builder.dir_path(path, ssl), timeout=self._timeout, verify=False)
 
     def friendly_name(self, ssl=False):
         return requests.get(self._url_builder.friendly_name(ssl), timeout=self._timeout, verify=False)
@@ -176,7 +177,7 @@ class TwonkyURLBuilder:
         self._port = port
         self._version = version
 
-    def dir_items(self, path, ssl):
+    def dir_path(self, path, ssl):
         schema = "https" if ssl else "http"
         if self._version == "8":
             return f"{schema}://{self._host}:{self._port}/rpc/dir?path={path}"
@@ -196,11 +197,11 @@ class TwonkyURLBuilder:
 
 
 def browse(client):
-    def do_request(client, var):
+    def request_dir_path(client, path):
         try:
-            return client.dir_items(var)
+            return client.dir_path(path)
         except requests.exceptions.ConnectionError:
-            return client.dir_items(var, ssl=True)
+            return client.dir_path(path, ssl=True)
 
     def print_item(id, type, name):
         if warning_file_name(name):
@@ -210,28 +211,31 @@ def browse(client):
 
     def extract_type_name(line):
         filetypes = {'D': 'Dir', 'F': 'File'}
-        id = line[0:3]
-        type = line[3]
-        name = line[4:]
+        exp = re.compile("(\d+)([FD])(.*)$")
+        matches = exp.match(line)
+        id = matches.group(1)
+        type = matches.group(2)
+        name = matches.group(3)
         return id, filetypes[type], name
 
     def do_print_results(content, path, path_id):
         for line in content:
             line = line.decode("utf8")
             if line and len(line) > 3 :
+                print("* debug:", line, path, path_id)
                 id, type, name = extract_type_name(line)
-                print_item(id, type, path + "/" + name)
+                print_item(path_id + "/" + id, type, "/".join([path, name]))
                 if type == 'Dir':
                     next_path = path + "/" + name
                     next_path_id = path_id + "/" + id
-                    response = do_request(client, next_path_id)
+                    response = request_dir_path(client, next_path_id)
                     do_print_results(response.iter_lines(), next_path, next_path_id)
 
     while True:
-        path = input("path nr (enter='/'): ")
+        path = input("path nr (return='/'): ")
         if path == "exit":
-            sys.exit()
-        response = do_request(client, path)
+            return
+        response = request_dir_path(client, path)
         print ("-" * 30)
         do_print_results(response.iter_lines(), "", "")
 
